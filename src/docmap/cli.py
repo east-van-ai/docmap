@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 # ==============================================
 # East Van AI -- AI for the rest of us!
@@ -16,11 +15,11 @@
 # with DESIGN.md (intent) and git log (history) when kicking off a thread.
 #
 # Usage:
-#    docmap [--include-private] [--include-tests] [--out FILE] [--force] [ROOT]
+#    docmap --src-root PATH [--include-private] [--include-tests] [--out FILE] [--force]
 #
-#    ROOT               project root to walk, always the last argument.
+#    --src-root PATH    project root to walk. Flag order is free.
 #                       Bare `docmap` prints this help; walking the current
-#                       directory is an explicit `docmap .`
+#                       directory is an explicit `docmap --src-root .`
 #    --include-private  include functions/methods starting with a single
 #                       underscore (dunders are always skipped)
 #    --include-tests    include files under test directories / test_*.py
@@ -120,10 +119,6 @@ def smells_like_system_root(root: Path) -> str:
     return ""
 
 
-# File/dir name fragments that mark something as test-related.
-TEST_MARKERS = {"test", "tests", "conftest"}
-
-
 def is_hidden(path: Path) -> bool:
     """Return True if the path's own name starts with a dot."""
     return path.name.startswith(".")
@@ -135,9 +130,7 @@ def should_skip_dir(path: Path, include_tests: bool) -> bool:
         return True
     if is_hidden(path):
         return True
-    if not include_tests and path.name.lower() in {"test", "tests"}:
-        return True
-    return False
+    return not include_tests and path.name.lower() in {"test", "tests"}
 
 
 def is_test_file(path: Path) -> bool:
@@ -295,7 +288,8 @@ def walk_project(root: Path, include_private: bool, include_tests: bool):
 
 
 USAGE = (
-    "Usage: docmap [--include-private] [--include-tests] [--out FILE] " "[--force] ROOT"
+    "Usage: docmap --src-root PATH [--include-private] [--include-tests] "
+    "[--out FILE] [--force]"
 )
 
 
@@ -306,10 +300,10 @@ def main():
         description="Generate a YAML docstring manifest for a project.",
     )
     parser.add_argument(
-        "root",
-        nargs="?",
+        "--src-root",
         default=None,
-        help="project root to walk, always the last argument",
+        metavar="PATH",
+        help="project root to walk",
     )
     parser.add_argument(
         "--include-private", action="store_true", help="include single-underscore names"
@@ -331,24 +325,19 @@ def main():
             sys.exit(0)
 
         # piped input, real usage error -- docmap maps directories, not streams
-        print("docmap: missing ROOT; docmap takes no piped input.", file=sys.stderr)
+        print(
+            "docmap: missing --src-root; docmap takes no piped input.",
+            file=sys.stderr,
+        )
         print(USAGE, file=sys.stderr)
         sys.exit(1)
 
-    # Flags first, root last -- enforced, not just documented. argparse
-    # accepts the root anywhere; see DESIGN.md "CLI Grammar" for why
-    # other orders are rejected on purpose.
-    if args.root is not None and sys.argv[-1] != args.root:
-        print("docmap: the root must be the last argument.", file=sys.stderr)
+    if args.src_root is None:
+        print("docmap: missing --src-root argument.", file=sys.stderr)
         print(USAGE, file=sys.stderr)
         sys.exit(1)
 
-    if args.root is None:
-        print("docmap: missing ROOT argument.", file=sys.stderr)
-        print(USAGE, file=sys.stderr)
-        sys.exit(1)
-
-    root = Path(args.root).resolve()
+    root = Path(args.src_root).resolve()
     if not root.is_dir():
         print(f"docmap: {root} is not a directory", file=sys.stderr)
         sys.exit(1)

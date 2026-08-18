@@ -18,34 +18,37 @@ def test_cli_bare_with_piped_stdin_is_usage_error(run_cli):
     assert result.stdout == ""
 
 
-def test_cli_flags_without_root_is_usage_error(run_cli):
+def test_cli_flags_without_src_root_is_usage_error(run_cli):
     result = run_cli(["--include-private"], input_text="")
     assert result.returncode == 1
-    assert "missing ROOT" in result.stderr
+    assert "missing --src-root" in result.stderr
 
 
-def test_cli_root_must_be_last_argument(run_cli, sample_project):
-    result = run_cli([str(sample_project), "--include-private"], input_text="")
-    assert result.returncode == 1
-    assert "must be the last argument" in result.stderr
-    assert "Usage: docmap" in result.stderr
-
-
-def test_cli_flags_first_root_last_is_accepted(run_cli, sample_project):
-    result = run_cli(["--include-private", str(sample_project)], input_text="")
+def test_cli_flag_order_is_free(run_cli, sample_project):
+    result = run_cli(
+        ["--src-root", str(sample_project), "--include-private"], input_text=""
+    )
     assert result.returncode == 0
     assert "mod.py:" in result.stdout
 
 
-def test_cli_nonexistent_root_is_error(run_cli, tmp_path):
-    result = run_cli([str(tmp_path / "nope")], input_text="")
+def test_cli_src_root_first_is_also_accepted(run_cli, sample_project):
+    result = run_cli(
+        ["--include-private", "--src-root", str(sample_project)], input_text=""
+    )
+    assert result.returncode == 0
+    assert "mod.py:" in result.stdout
+
+
+def test_cli_nonexistent_src_root_is_error(run_cli, tmp_path):
+    result = run_cli(["--src-root", str(tmp_path / "nope")], input_text="")
     assert result.returncode == 1
     assert "is not a directory" in result.stderr
     assert result.stderr.startswith("docmap: ")
 
 
 def test_cli_unknown_flag_is_argparse_error(run_cli, sample_project):
-    result = run_cli(["--nope", str(sample_project)], input_text="")
+    result = run_cli(["--nope", "--src-root", str(sample_project)], input_text="")
     assert result.returncode == 2
 
 
@@ -55,7 +58,7 @@ def test_cli_unknown_flag_is_argparse_error(run_cli, sample_project):
 def test_cli_refuses_system_root_without_force(run_cli, tmp_path):
     for name in ("bin", "etc", "usr", "lib"):
         (tmp_path / name).mkdir()
-    result = run_cli([str(tmp_path)], input_text="")
+    result = run_cli(["--src-root", str(tmp_path)], input_text="")
     assert result.returncode == 1
     assert "docmap: refusing to walk" in result.stderr
     assert "--force" in result.stderr
@@ -64,7 +67,7 @@ def test_cli_refuses_system_root_without_force(run_cli, tmp_path):
 def test_cli_force_overrides_system_root_sniff(run_cli, tmp_path):
     for name in ("bin", "etc", "usr", "lib"):
         (tmp_path / name).mkdir()
-    result = run_cli(["--force", str(tmp_path)], input_text="")
+    result = run_cli(["--force", "--src-root", str(tmp_path)], input_text="")
     assert result.returncode == 0
 
 
@@ -72,7 +75,7 @@ def test_cli_force_overrides_system_root_sniff(run_cli, tmp_path):
 
 
 def test_cli_prints_map_to_stdout(run_cli, sample_project):
-    result = run_cli([str(sample_project)], input_text="")
+    result = run_cli(["--src-root", str(sample_project)], input_text="")
     assert result.returncode == 0
     assert "mod.py:" in result.stdout
     assert "Say hello." in result.stdout
@@ -80,7 +83,9 @@ def test_cli_prints_map_to_stdout(run_cli, sample_project):
 
 def test_cli_writes_out_file(run_cli, sample_project):
     out_file = sample_project / "manifest.yaml"
-    result = run_cli(["--out", str(out_file), str(sample_project)], input_text="")
+    result = run_cli(
+        ["--out", str(out_file), "--src-root", str(sample_project)], input_text=""
+    )
     assert result.returncode == 0
     assert out_file.exists()
     assert "mod.py:" in out_file.read_text()

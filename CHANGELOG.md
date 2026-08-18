@@ -6,7 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [v0.1.0] - 2026-07-18
+## [0.2.0] - 2026-08-18
+
+### Changed
+
+- **Breaking:** the walk target is now the named option `--src-root PATH`
+  instead of the bare `ROOT` positional, and flag order is free. Walking
+  the current directory is `docmap --src-root .`
+- Dev dependencies live in a `[dependency-groups]` block in
+  `pyproject.toml`, with `black` and `ruff` pinned. Install with
+  `pip install -e . --group dev`
+- Table-of-contents blocks dropped from `README.md`, `DESIGN.md`, and
+  `CLAUDE.md`
+- Install and homepage URLs point at `east-van-ai/docmap`. The install
+  line no longer tracks a `stable` branch
+
+### Removed
+
+- `RELEASING.md`
+- `requirements.txt` and `requirements-dev.txt`
+
+## [0.1.0] - 2026-07-18
 
 ### Added
 

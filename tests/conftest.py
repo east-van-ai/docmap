@@ -19,6 +19,7 @@ def run_cli():
             capture_output=True,
             text=True,
             cwd=cwd,
+            check=False,
         )
 
     return _run_cli

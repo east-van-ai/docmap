@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import docmap.cli as cli
+from docmap import cli
 from docmap.cli import (
     is_test_file,
     should_skip_dir,
