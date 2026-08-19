@@ -13,51 +13,18 @@ functions with one job each, plus a `main()` that wires them into a
 pipeline. Data is plain dicts and strings; the only state is the
 filesystem being read.
 
-## CLI Grammar
-
-The walk target is a named option, not a positional:
-`docmap --src-root PATH [--include-private] [--include-tests] [--out FILE] [--force]`.
-Flag order is free, because `--src-root` is unambiguous anywhere on
-the command line. An earlier revision used a bare `ROOT` positional
-with an enforced root-must-be-last rule. The fixed slot existed to
-keep the positional unambiguous next to future flags. A named option
-carries its own label, so both the positional and the position rule
-are gone.
-
-Bare `docmap` on a TTY prints the module docstring (the usage banner)
-and exits 0. Walking the current directory costs one explicit flag,
-`docmap --src-root .`. That deliberately echoes the guardrail posture
-below, where the harmless invocation is the default and anything that
-touches the filesystem tree is asked for by name.
-
-`docmap` takes no piped input: its unit of work is a directory, not a
-stream. Bare `docmap` with stdin attached to a pipe is therefore a
-usage error (exit 1), not a help dump. Printing help to stdout in the
-middle of a pipeline would silently pollute it with exit 0, and an
-error is the honest signal.
-
-Exit codes:
-
-- `0`: success, and documentation. A map was emitted, or bare-on-TTY
-    printed the banner
-- `1`: any error `docmap` raises itself (a usage slip, a root that is
-    not a directory, or either guardrail refusing the walk)
-- `2`: argparse's own errors (an unknown flag, or a bad value), left
-    to argparse's convention
-
-All self-raised errors go to stderr as `docmap: <message>`. Usage
-errors additionally print the usage line; the sniff refusal prints the
-exact `--force` re-run hint instead, since the fix there is a flag,
-not a different grammar.
+docmap writes nothing. It reads, parses, and prints; the map arrives
+on stdout, and a shell redirect takes it from there. The guardrails
+below still matter, since a wrong PATH costs time and yields a useless
+map, but with no write path it can never cost more than that.
 
 ## The Guardrails
 
 docmap's distinguishing concern. The business logic is a read-only
-walk, but the walk is aimed by a single `--src-root` value, and the
-cost of aiming it wrong is grinding through an OS root or a monorepo
-parent for minutes, then emitting a useless map of the world. The
-guardrails exist to make the wrong invocation loud and cheap instead
-of slow and silent.
+walk, but the walk is aimed by a single PATH argument, and the cost of
+aiming it wrong is grinding through an OS root or a monorepo parent for
+minutes, then emitting a useless map of the world. The guardrails exist
+to make the wrong invocation loud and cheap instead of slow and silent.
 
 1. **Root sniff** (`smells_like_system_root`). Refuses to walk a root
    that doesn't look like a project, on three heuristics:
@@ -96,15 +63,15 @@ of slow and silent.
    cannot plausibly hold hand-written source qualify: VCS, caches,
    build output, virtualenvs, editor state. A name does not earn a
    place merely because this project happens to use it that way.
-   `data` sat in the set until 0.2.1 and is why the rule is written
-   down. It is an ordinary package name, so skipping it dropped real
-   source from the map, and no document admitted to doing so.
+   `data` is the counter-example that put the rule here. It is an
+   ordinary package name, so skipping it drops real source from the
+   map.
 
 ## The Walk/Extract Pipeline
 
-`main()` runs: parse args -> grammar guards (missing src-root, bare
-invocation, stdin) -> root checks (is a directory, root sniff) ->
-`walk_project` -> `dump_yaml` -> stdout or `--out FILE`.
+`main()` runs: parse args -> grammar guards (a bare word, then the PATH
+slot) -> root checks (is a directory, root sniff) -> `walk_project` ->
+`dump_yaml` -> stdout.
 
 - `walk_project` does a sorted `rglob("*.py")` under the root,
   applying the filters (`should_skip_dir`, `is_test_file`, hidden
@@ -133,7 +100,7 @@ of entries:
 src/docmap/cli.py:
   - def: collect_defs(tree, include_private)
     doc: Collect top-level and class-level function/class defs with their docstrings.
-    line: 175
+    line: 195
   - class: Walker
     doc: ""
     line: 40
@@ -146,13 +113,70 @@ strings. `yaml_escape` quotes only when it must (YAML-significant
 characters or surrounding whitespace), so the common case stays clean
 to read. Files with no surviving entries are omitted entirely.
 
+## CLI Grammar
+
+`docmap print PATH [--include-private] [--include-tests] [--force]`.
+The command word sits at `argv[1]` and the walk target at `argv[2]`.
+Flags follow PATH, and their order among themselves is free.
+
+| Command line | Result | Exit |
+| --- | --- | --- |
+| `docmap` | banner | 0 |
+| `docmap print` | banner | 0 |
+| `docmap print PATH` | map on stdout | 0 |
+| `docmap print` and flags, no PATH | usage error | 1 |
+| `docmap print --force PATH` | usage error, PATH comes first | 1 |
+| `docmap print A B` | usage error, nothing after PATH | 1 |
+| `docmap print PATH`, PATH not a directory | error | 1 |
+| `docmap print PATH --nope` | argparse rejects the flag | 2 |
+| `docmap --src-root .` | argparse rejects the command | 2 |
+
+Positions are decided, not inferred. Argparse from Python 3.12 on
+back-fills a trailing optional positional from a token after any
+number of flags, so trusting it would let the accepted grammar drift
+from the documented one. docmap reads the tokens ahead of the first
+flag instead, and takes PATH from there.
+
+Walking the current directory costs one explicit token, `docmap print
+.`. That echoes the guardrail posture above: the harmless invocation is
+the default, and the filesystem tree is asked for by name.
+
+A bare word is a question and gets documentation. One command in one
+file means one document, so bare `docmap` and bare `docmap print` both
+print the module docstring, which is the usage banner. It already names
+the command, the argument, and every flag, and a second copy beside it
+would drift. A second command is what would split them. The test is
+`len(sys.argv) == 2`, never "PATH is missing": once any other token is
+present the user asked for something specific, and answering with help
+would hide the mistake.
+
+`docmap` takes no piped input: its unit of work is a directory, not a
+stream. That is documented, not enforced. `isatty()` answers "is a
+human here", which is right for choosing how to present an answer and
+wrong for deciding what the answer is. `/dev/null` arrives from cron,
+from a subprocess, and from a test runner, and reads as a pipe under
+that test, so one command line would print help from a shell and fail
+under nohup. Bare `docmap` prints the banner and exits 0, whatever
+stdin is.
+
+Exit codes:
+
+- `0`: success, and documentation. A map was emitted, or a bare word
+    printed the banner
+- `1`: any error `docmap` raises itself (a usage slip, a root that is
+    not a directory, or either guardrail refusing the walk)
+- `2`: argparse's own errors (an unknown command, an unknown flag, or
+    a bad value), left to argparse's convention
+
+All self-raised errors go to stderr as `docmap: <message>`. Usage
+errors additionally print the usage line; the sniff refusal prints the
+exact `--force` re-run hint instead, since the fix there is a flag,
+not a different grammar.
+
 ## Open Questions
 
 - Module-level constants and assignments are not captured; undecided
   whether they belong on the map. Nothing forces the issue yet.
-- `--out` overwrites without ceremony. A plan/apply split doesn't
-  obviously pay for itself here (the default is already a dry run to
-  stdout), but it hasn't been ruled out.
 
 ## Known Bugs
 

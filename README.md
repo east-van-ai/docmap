@@ -16,7 +16,7 @@ function and class signature, the first sentence of its docstring,
 and its 1-indexed line number, as minimal YAML. A few hundred lines
 standing in for a few thousand.
 
-After that, reading gets surgical. `vim +175 src/docmap/cli.py` drops
+After that, reading gets surgical. `vim +195 src/docmap/cli.py` drops
 a human on the exact def. An assistant does the same with a ranged
 read, instead of pulling the whole file in to find one function. You
 hand over the map, not the territory.
@@ -27,10 +27,10 @@ hand over the map, not the territory.
 src/docmap/cli.py:
   - def: first_doc_sentence(node)
     doc: Extract the first sentence of a docstring, regardless of line breaks.
-    line: 143
+    line: 163
   - def: collect_defs(tree, include_private)
     doc: Collect top-level and class-level function/class defs with their docstrings.
-    line: 175
+    line: 195
 ```
 
 - One mapping per file, paths relative to the root, files sorted
@@ -56,32 +56,39 @@ No dependencies to worry about, this is a small, self-contained tool.
 ## Usage
 
 ```bash
-docmap --src-root PATH [--include-private] [--include-tests] [--out FILE] [--force]
+docmap print PATH [--include-private] [--include-tests] [--force]
 ```
 
-- `--src-root PATH` names the directory to walk. Flag order is free.
-  (Curious about the grammar? See the "CLI Grammar" section of
-  [DESIGN.md](DESIGN.md).)
-- Bare `docmap` prints this usage information. Walking the current
-  directory is an explicit `docmap --src-root .`
+- `PATH` is the directory to walk. It comes before the flags, whose
+  order among themselves is free. (Curious about the grammar? See the
+  "CLI Grammar" section of [DESIGN.md](DESIGN.md).)
+- Bare `docmap` prints this usage information, and so does
+  `docmap print` on its own. Walking the current directory is an
+  explicit `docmap print .`
 - `--include-private` includes single-underscore names. Dunders are
   always skipped.
 - `--include-tests` includes files under test directories and
   `test_*.py`
-- `--out FILE` writes YAML to `FILE` instead of stdout
 - `--force` walks a root that failed the safety sniff (see below)
+
+The map goes to stdout, so a shell redirect writes it to a file:
+
+```bash
+docmap print . > map.yaml
+```
 
 `docmap` does not read piped input: its unit of work is a directory,
 not a stream.
 
 ### Exit codes
 
-- `0`: success, and documentation. A bare `docmap` is a question, so
-    it prints its usage banner and exits 0
+- `0`: success, and documentation. A bare word is a question, so it
+    prints its usage banner and exits 0
 - `1`: any error `docmap` raises itself (a usage slip, a root that
     failed the system-root sniff, or either guardrail refusing the
     walk)
-- `2`: argparse's own errors (an unknown flag, or a bad value)
+- `2`: argparse's own errors (an unknown command, an unknown flag, or
+    a bad value)
 
 ### What it filters out by default
 
@@ -103,7 +110,7 @@ you really mean it.
 It also caps out at 5000 `.py` files mid-walk and aborts loudly, on
 the assumption that crossing that ceiling means the wrong root got
 passed in, not that you have a 5000-file Python project. The rationale
-for both rails lives in the "The Guardrails" section of
+for both rails lives in "The Guardrails" section of
 [DESIGN.md](DESIGN.md).
 
 ## Wire it into your agent

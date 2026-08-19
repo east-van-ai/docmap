@@ -12,23 +12,36 @@
 # docstring. Designed as a lightweight "what exists right now" index.
 #
 # Usage:
-#    docmap --src-root PATH [--include-private] [--include-tests] [--out FILE] [--force]
 #
-#    --src-root PATH    project root to walk. Flag order is free.
-#                       Bare `docmap` prints this help; walking the current
-#                       directory is an explicit `docmap --src-root .`
+#    docmap print PATH [--include-private] [--include-tests] [--force]
+#
+# Commands:
+#
+#    print PATH         walk PATH and print the map to stdout
+#
+# PATH is the directory to walk, and it is required. Use `.` for the
+# current directory. The map goes to stdout, so a shell redirect writes a
+# file.
+#
+# Options:
+#
 #    --include-private  include functions/methods starting with a single
 #                       underscore (dunders are always skipped)
 #    --include-tests    include files under test directories / test_*.py
-#    --out FILE         write YAML to FILE instead of stdout
 #    --force            walk a root that failed the system-root safety check
+#
+# PATH comes before the flags, whose order among themselves is free. Bare
+# `docmap` prints this text, and so does `docmap print` with nothing after
+# it. Asking is not a usage error.
+#
+# docmap reads no piped input.
 #
 # Exit codes:
 #
 #    0:     success, and documentation
 #    1:     docmap's own error, a usage slip, a root that failed the safety
 #           check, or either guardrail refusing the walk
-#    2:     an unknown flag, or a bad value
+#    2:     an unknown command, an unknown flag, or a bad value
 #
 # License: MIT
 # ==============================================
@@ -39,6 +52,13 @@ import ast
 import re
 import sys
 from pathlib import Path
+
+# Argparse hardcodes 2 in `ArgumentParser.error()`, which calls `sys.exit`
+# itself, so EXIT_ARGPARSE is never returned, only asserted against. See
+# DESIGN.md, "CLI Grammar", for what the three cover.
+EXIT_OK = 0
+EXIT_ERROR = 1
+EXIT_ARGPARSE = 2
 
 # Directories we never want to walk into. Only names that cannot plausibly
 # hold hand-written source belong here; see DESIGN.md.
@@ -288,81 +308,109 @@ def walk_project(root: Path, include_private: bool, include_tests: bool):
     return file_entries
 
 
-USAGE = (
-    "Usage: docmap --src-root PATH [--include-private] [--include-tests] "
-    "[--out FILE] [--force]"
-)
+USAGE = "Usage: docmap print PATH [--include-private] [--include-tests] [--force]"
+
+PRINT_HELP = "Walk PATH and print the map to stdout"
+
+
+def leading_paths(tokens):
+    """Return the tokens ahead of the first flag.
+
+    The documented grammar puts PATH before every flag, so the slot is read
+    off the front of the command line. What argparse resolved from anywhere
+    else is discarded, since how much it tolerates depends on the
+    interpreter. See DESIGN.md, "Positions are decided, not inferred".
+    """
+    paths = []
+    for token in tokens:
+        if token.startswith("-"):
+            break
+        paths.append(token)
+    return paths
+
+
+def usage_error(message):
+    """Report a command line docmap could not read, with the usage line."""
+    print(f"docmap: {message}", file=sys.stderr)
+    print(USAGE, file=sys.stderr)
+    return EXIT_ERROR
+
+
+def build_parser():
+    """Construct the argument parser for the whole CLI.
+
+    PATH is optional to argparse so that a bare command word reaches `main`
+    and gets an answer instead of a usage error. Its parsed value goes
+    unused: `main` reads the slot itself.
+    """
+    parser = argparse.ArgumentParser(
+        prog="docmap",
+        description="Print a YAML docstring manifest for a project.",
+    )
+    subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
+
+    printer = subparsers.add_parser("print", help=PRINT_HELP, description=PRINT_HELP)
+    printer.add_argument(
+        "path", metavar="PATH", nargs="?", help="Project directory to walk"
+    )
+    printer.add_argument(
+        "--include-private", action="store_true", help="include single-underscore names"
+    )
+    printer.add_argument(
+        "--include-tests", action="store_true", help="include test files/dirs"
+    )
+    printer.add_argument(
+        "--force", action="store_true", help="skip the system-root safety check"
+    )
+    return parser
 
 
 def main():
-    """Parse arguments, enforce the CLI grammar, and emit the map."""
-    parser = argparse.ArgumentParser(
-        prog="docmap",
-        description="Generate a YAML docstring manifest for a project.",
-    )
-    parser.add_argument(
-        "--src-root",
-        default=None,
-        metavar="PATH",
-        help="project root to walk",
-    )
-    parser.add_argument(
-        "--include-private", action="store_true", help="include single-underscore names"
-    )
-    parser.add_argument(
-        "--include-tests", action="store_true", help="include test files/dirs"
-    )
-    parser.add_argument("--out", default=None, help="write to file instead of stdout")
-    parser.add_argument(
-        "--force", action="store_true", help="skip the system-root safety check"
-    )
-    args = parser.parse_args()
+    """Parse arguments, enforce the CLI grammar, and print the map.
 
-    if len(sys.argv) == 1:
+    A bare word is a question and gets documentation, exit 0. Any other
+    shortfall in the PATH slot is a slip and gets an error, exit 1.
+    Argparse keeps the vocabulary it owns: an unknown command, an unknown
+    flag, or a bad value, exiting 2.
+    """
+    tokens = sys.argv[1:]
 
-        # a human typed bare `docmap`
-        if sys.stdin.isatty():
-            print(__doc__, file=sys.stdout)
-            sys.exit(0)
+    # A bare word is a question: bare `docmap`, or the command word alone.
+    # One command in one file means one document, so both get the banner.
+    if not tokens or tokens == ["print"]:
+        print(__doc__.strip())
+        return EXIT_OK
 
-        # piped input, real usage error -- docmap maps directories, not streams
-        print(
-            "docmap: missing --src-root; docmap takes no piped input.",
-            file=sys.stderr,
-        )
-        print(USAGE, file=sys.stderr)
-        sys.exit(1)
+    parser = build_parser()
+    args, extras = parser.parse_known_args(tokens)
 
-    if args.src_root is None:
-        print("docmap: missing --src-root argument.", file=sys.stderr)
-        print(USAGE, file=sys.stderr)
-        sys.exit(1)
+    if any(extra.startswith("-") for extra in extras):
+        parser.parse_args(tokens)  # argparse names the flag better, exit 2
 
-    root = Path(args.src_root).resolve()
+    # Not args.path: what argparse resolves from a token after a flag varies
+    # by interpreter, and the grammar should not.
+    paths = leading_paths(tokens[1:])
+    if not paths:
+        return usage_error("print needs PATH")
+    if len(paths) > 1:
+        return usage_error(f"print takes nothing after PATH: {paths[1]!r}")
+
+    root = Path(paths[0]).resolve()
     if not root.is_dir():
         print(f"docmap: {root} is not a directory", file=sys.stderr)
-        sys.exit(1)
+        return EXIT_ERROR
 
     if not args.force:
         reason = smells_like_system_root(root)
         if reason:
             print(f"docmap: refusing to walk {root}: {reason}", file=sys.stderr)
             print("if you really mean it, rerun with --force", file=sys.stderr)
-            sys.exit(1)
+            return EXIT_ERROR
 
     file_entries = walk_project(root, args.include_private, args.include_tests)
-    yaml_text = dump_yaml(file_entries)
-
-    if args.out:
-        try:
-            Path(args.out).write_text(yaml_text, encoding="utf-8")
-        except OSError as e:
-            print(f"docmap: cannot write '{args.out}': {e}", file=sys.stderr)
-            sys.exit(1)
-        print(f"wrote {args.out}", file=sys.stderr)
-    else:
-        sys.stdout.write(yaml_text)
+    sys.stdout.write(dump_yaml(file_entries))
+    return EXIT_OK
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

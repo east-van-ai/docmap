@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-19
+
+### Changed
+
+- **Breaking:** the CLI grammar is now `docmap print PATH [--flags]`.
+  The command word comes first, PATH second, and flags after PATH. The
+  old `--src-root PATH` option is gone
+- Bare `docmap` prints the usage banner and exits 0 whatever stdin is,
+  instead of erroring when stdin is a pipe. `docmap print` on its own
+  prints the same banner
+- `DESIGN.md` leads with the engine now. The CLI grammar sits below it
+  and opens with a table of every accepted command line
+
+### Removed
+
+- **Breaking:** `--out FILE`. docmap prints the map to stdout, and a
+  shell redirect writes it: `docmap print . > map.yaml`
+
 ## [0.2.1] - 2026-08-19
 
 ### Added

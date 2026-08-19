@@ -33,16 +33,17 @@ right consistently.
 ## Basic usage
 
 ```bash
-docmap --src-root PATH [--include-private] [--include-tests] [--out FILE] [--force]
+docmap print PATH [--include-private] [--include-tests] [--force]
 ```
 
-- Flag order is free. `docmap --force --src-root .` and
-  `docmap --src-root . --force` are both fine.
-- Bare `docmap` is not an error. It prints the usage banner and exits 0.
+- PATH comes before the flags. `docmap print . --force` is right;
+  `docmap print --force .` is a usage error.
+- Bare `docmap` is not an error. It prints the usage banner and exits 0, and
+  so does `docmap print` on its own.
 - `docmap` does not read piped input; its unit of work is a directory, not a
   stream.
-- Output goes to stdout by default. Use `--out FILE` to write it to a file
-  instead.
+- Output goes to stdout. A shell redirect writes it to a file:
+  `docmap print . > map.yaml`
 
 ## Typical workflow
 
@@ -50,7 +51,7 @@ docmap --src-root PATH [--include-private] [--include-tests] [--out FILE] [--for
    part of the map:
 
    ```bash
-   docmap --src-root src/
+   docmap print src/
    ```
 
 2. Read the YAML. Each top-level key is a file path relative to the root, and
@@ -88,11 +89,12 @@ These are intentional. Do not fight them.
 
 ## Exit codes
 
-- `0`: success, and documentation. A bare `docmap` is a question, so it prints
+- `0`: success, and documentation. A bare word is a question, so it prints
     its usage banner and exits 0
 - `1`: any error `docmap` raises itself (a usage slip, a root that failed the
     system-root sniff, or either guardrail refusing the walk)
-- `2`: argparse's own errors (an unknown flag, or a bad value)
+- `2`: argparse's own errors (an unknown command, an unknown flag, or a bad
+    value)
 
 ## If docmap is not installed
 
@@ -107,5 +109,5 @@ If pipx or the network is unavailable but the repo is on disk, run it from
 source:
 
 ```bash
-PYTHONPATH=/path/to/docmap/src python3 -m docmap.cli --src-root PATH
+PYTHONPATH=/path/to/docmap/src python3 -m docmap.cli print PATH
 ```
