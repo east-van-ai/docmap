@@ -38,6 +38,11 @@ def test_should_skip_dir_known_dirs():
     assert not should_skip_dir(Path("src"), include_tests=True)
 
 
+def test_should_skip_dir_allows_ordinary_package_names():
+    """`data` is a real package name, not build output. See DESIGN.md."""
+    assert not should_skip_dir(Path("data"), include_tests=True)
+
+
 def test_should_skip_dir_tests_flag():
     assert should_skip_dir(Path("tests"), include_tests=False)
     assert not should_skip_dir(Path("tests"), include_tests=True)
@@ -86,6 +91,18 @@ def test_walk_project_basic(tmp_path):
     assert "test_mod.py" not in entries
     assert not any("__pycache__" in k for k in entries)
     assert entries["mod.py"][0]["doc"] == "Say hello."
+
+
+def test_walk_project_walks_a_data_package(tmp_path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "loader.py").write_text(
+        'def load():\n    """Load a fixture."""\n    pass\n'
+    )
+
+    entries = walk_project(tmp_path, include_private=False, include_tests=False)
+
+    assert "data/loader.py" in entries
+    assert entries["data/loader.py"][0]["doc"] == "Load a fixture."
 
 
 def test_walk_project_include_tests(tmp_path):

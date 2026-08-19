@@ -13,29 +13,6 @@ functions with one job each, plus a `main()` that wires them into a
 pipeline. Data is plain dicts and strings; the only state is the
 filesystem being read.
 
-## File Tree
-
-Trimmed view of the layout
-
-```text
-.
-├── src/
-│   └── docmap/
-│       ├── __init__.py
-│       └── cli.py
-├── tests/
-│   ├── conftest.py
-│   ├── test_cli_integration.py
-│   ├── test_extraction.py
-│   └── test_walking.py
-├── CHANGELOG.md
-├── CLAUDE.md
-├── DESIGN.md
-├── LICENSE
-├── pyproject.toml
-└── README.md
-```
-
 ## CLI Grammar
 
 The walk target is a named option, not a positional:
@@ -45,8 +22,7 @@ the command line. An earlier revision used a bare `ROOT` positional
 with an enforced root-must-be-last rule. The fixed slot existed to
 keep the positional unambiguous next to future flags. A named option
 carries its own label, so both the positional and the position rule
-are gone. Sibling project `mdmap` still uses the positional-last
-grammar and will converge on this shape later.
+are gone.
 
 Bare `docmap` on a TTY prints the module docstring (the usage banner)
 and exits 0. Walking the current directory costs one explicit flag,
@@ -62,11 +38,12 @@ error is the honest signal.
 
 Exit codes:
 
-- `0` is success: a map was emitted, or bare-on-TTY printed help.
-- `1` covers every error docmap raises itself, meaning usage errors,
-  a root that is not a directory, and both guardrail refusals below.
-- `2` is argparse's own errors (unknown flag, bad value), argparse's
-  convention, left untouched.
+- `0`: success, and documentation. A map was emitted, or bare-on-TTY
+    printed the banner
+- `1`: any error `docmap` raises itself (a usage slip, a root that is
+    not a directory, or either guardrail refusing the walk)
+- `2`: argparse's own errors (an unknown flag, or a bad value), left
+    to argparse's convention
 
 All self-raised errors go to stderr as `docmap: <message>`. Usage
 errors additionally print the usage line; the sniff refusal prints the
@@ -93,7 +70,7 @@ of slow and silent.
    - The root is a filesystem anchor (`/`, a drive, a volume).
 
    `--force` is the single escalation past the sniff, the same
-   posture as `mdmap`'s `--apply`: the default invocation is safe,
+   posture as a plan/apply split: the default invocation is safe,
    the risky step costs one deliberate token. Refusal, not a
    confirmation prompt. docmap is built to run non-interactively at
    session start and inside scripts, where a prompt would hang, and
@@ -114,6 +91,14 @@ of slow and silent.
    README for the list). This is a guardrail in the small: the map is
    meant to show a project's own public-ish surface, and every
    filtered entry is noise that would drown it.
+
+   Membership in `SKIP_DIRS` is narrow on purpose. Only names that
+   cannot plausibly hold hand-written source qualify: VCS, caches,
+   build output, virtualenvs, editor state. A name does not earn a
+   place merely because this project happens to use it that way.
+   `data` sat in the set until 0.2.1 and is why the rule is written
+   down. It is an ordinary package name, so skipping it dropped real
+   source from the map, and no document admitted to doing so.
 
 ## The Walk/Extract Pipeline
 
@@ -146,9 +131,9 @@ of entries:
 
 ```yaml
 src/docmap/cli.py:
-  - def: "collect_defs(tree, include_private)"
-    doc: "Collect top-level and class-level function/class defs with their docstrings."
-    line: 177
+  - def: collect_defs(tree, include_private)
+    doc: Collect top-level and class-level function/class defs with their docstrings.
+    line: 175
   - class: Walker
     doc: ""
     line: 40
@@ -165,9 +150,9 @@ to read. Files with no surviving entries are omitted entirely.
 
 - Module-level constants and assignments are not captured; undecided
   whether they belong on the map. Nothing forces the issue yet.
-- `--out` overwrites without ceremony. A plan/apply split like
-  `mdmap`'s doesn't obviously pay for itself here (the default is
-  already a dry run to stdout), but it hasn't been ruled out.
+- `--out` overwrites without ceremony. A plan/apply split doesn't
+  obviously pay for itself here (the default is already a dry run to
+  stdout), but it hasn't been ruled out.
 
 ## Known Bugs
 

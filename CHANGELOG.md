@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-19
+
+### Added
+
+- `SKILL.md`, a ready-to-copy agent skill definition, shipped in the
+  public carve-out
+
+### Changed
+
+- README leads with the context-window case for handing over a map,
+  and points at `SKILL.md` for wiring docmap into an agent
+- Usage banner trimmed: no filename header, no pointer to `DESIGN.md`
+  and `git log`, and exit codes listed one per line. README, DESIGN,
+  and `SKILL.md` list them the same way
+
+### Fixed
+
+- Directories named `data` are no longer skipped. `data/` is an
+  ordinary package name, and skipping it dropped real source from the
+  map without any documentation saying so
+
 ## [0.2.0] - 2026-08-18
 
 ### Changed
@@ -30,7 +51,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- Abstract Syntax Tree(AST)-based extraction of top-level and class-level
+- Abstract Syntax Tree (AST) based extraction of top-level and class-level
   functions/methods, with first-sentence docstrings and line numbers
 - Hand-rolled minimal YAML writer (no external dependencies)
 - Default noise filtering: VCS/cache/build dirs, hidden dirs, test files
@@ -48,13 +69,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- CLI grammar aligned with `mdmap`: bare `docmap` on a TTY prints the
+- CLI grammar reworked: bare `docmap` on a TTY prints the
   usage banner and exits 0 (walking the current directory is an explicit
   `docmap .`); bare `docmap` with piped stdin is a usage error (docmap
   takes no piped input); flags-first/root-last argument order is
   enforced; errors go to stderr as `docmap: ...` plus a usage line
 - Exit codes normalized to `0` success, `1` for every docmap-raised
-  error (usage, bad root, both guardrail refusals -- previously `3` for
+  error (usage, bad root, both guardrail refusals; previously `3` for
   the root sniff and `2` for the file ceiling), `2` reserved for
   argparse's own errors
 - Python floor widened from >=3.14 to >=3.9; CI now runs a 3.9-3.14
@@ -62,7 +83,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Tests split by layer into `test_extraction.py`, `test_walking.py`,
   and `test_cli_integration.py`, with a subprocess `run_cli` fixture
   invoking `python -m docmap.cli`
-- README restructured to the mdmap shape (Why / Example output /
+- README restructured (Why / Example output /
   Install / Usage / Notes / Use of AI); install now points at the
   `stable` branch
 

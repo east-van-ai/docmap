@@ -6,34 +6,37 @@ it's defined on.
 
 ## Why
 
-Handing a codebase to a collaborator, human or AI, usually means
-pasting whole files. Most of every file is implementation detail.
-What the reader needs first is a map: what exists, what it's called,
-what it claims to do, and where it lives.
+An AI coding assistant reads a codebase the expensive way. It opens
+files. A file is mostly implementation, and the assistant pays for
+all of it, in context window and in attention, to learn three things:
+what exists, what it claims to do, and where it lives.
 
-`docmap` emits exactly that: every function and class signature, the
-first sentence of its docstring, and its 1-indexed line number, as
-minimal YAML. Built as a "what exists right now" index, to pair with
-`DESIGN.md` for intent and `git log --oneline` for history at the
-start of an AI-assisted coding session. You hand over the map, not
-the territory. `vim +177 src/docmap/cli.py` drops a human on the
-exact def, and an AI assistant can do the same with a ranged read
-instead of pulling whole files into its context window.
+`docmap` hands over those three things and nothing else. Every
+function and class signature, the first sentence of its docstring,
+and its 1-indexed line number, as minimal YAML. A few hundred lines
+standing in for a few thousand.
+
+After that, reading gets surgical. `vim +175 src/docmap/cli.py` drops
+a human on the exact def. An assistant does the same with a ranged
+read, instead of pulling the whole file in to find one function. You
+hand over the map, not the territory.
 
 ## Example output
 
 ```yaml
 src/docmap/cli.py:
-  - def: "first_doc_sentence(node)"
-    doc: "Extract the first sentence of a docstring, regardless of line breaks."
-    line: 145
-  - def: "collect_defs(tree, include_private)"
-    doc: "Collect top-level and class-level function/class defs with their docstrings."
-    line: 177
+  - def: first_doc_sentence(node)
+    doc: Extract the first sentence of a docstring, regardless of line breaks.
+    line: 143
+  - def: collect_defs(tree, include_private)
+    doc: Collect top-level and class-level function/class defs with their docstrings.
+    line: 175
 ```
 
 - One mapping per file, paths relative to the root, files sorted
 - Line numbers are 1-indexed, matching what your editor expects
+- Values are quoted only when YAML needs them to be, so the common
+  case stays readable
 - Methods carry dotted qualnames (`Foo.bar`, `Foo.Inner.baz`)
 - Nested defs inside function bodies are deliberately not descended
   into, so the map stays flat and shows the public-ish surface
@@ -68,10 +71,17 @@ docmap --src-root PATH [--include-private] [--include-tests] [--out FILE] [--for
 - `--out FILE` writes YAML to `FILE` instead of stdout
 - `--force` walks a root that failed the safety sniff (see below)
 
-Exit codes: `0` success, `1` for any error docmap raises itself
-(usage errors, bad root, safety refusals), `2` for argparse's own
-errors. `docmap` does not read piped input: its unit of work is a
-directory, not a stream.
+`docmap` does not read piped input: its unit of work is a directory,
+not a stream.
+
+### Exit codes
+
+- `0`: success, and documentation. A bare `docmap` is a question, so
+    it prints its usage banner and exits 0
+- `1`: any error `docmap` raises itself (a usage slip, a root that
+    failed the system-root sniff, or either guardrail refusing the
+    walk)
+- `2`: argparse's own errors (an unknown flag, or a bad value)
 
 ### What it filters out by default
 
@@ -95,6 +105,25 @@ the assumption that crossing that ceiling means the wrong root got
 passed in, not that you have a 5000-file Python project. The rationale
 for both rails lives in the "The Guardrails" section of
 [DESIGN.md](DESIGN.md).
+
+## Wire it into your agent
+
+A map you have to remember to generate is a map you will forget to
+generate. It earns its keep when the assistant fetches one itself, at
+the moment it needs one, and agent harnesses that read a `SKILL.md`
+will do exactly that once you tell them when.
+
+[SKILL.md](SKILL.md) in this repo is that file. Not a specimen
+written for the README: it is the one in daily use here. Copy it to
+wherever your harness keeps skills, which for Claude Code means
+`~/.claude/skills/docmap/SKILL.md`, and the assistant will start
+fetching the map on its own.
+
+The `description` field at the top is the part that earns its keep.
+It is what the assistant matches against when deciding whether to
+reach for the tool, so it names situations, not features. Everything
+under it is only read once the skill has already been picked. Worth
+knowing if you plan to write your own for something else.
 
 ## Notes
 

@@ -7,12 +7,9 @@
 #
 # ~~~ ~~~ ~~~ ~~~ docmap ~~~ ~~~ ~~~ ~~~
 #
-# cli.py -- entry point for docmap.
-#
 # Walk a project directory, find Python files, and emit a YAML manifest of
-# every function and class definition along with the first line of its
-# docstring. Designed as a lightweight "what exists right now" index to pair
-# with DESIGN.md (intent) and git log (history) when kicking off a thread.
+# every function and class definition along with the first sentence of its
+# docstring. Designed as a lightweight "what exists right now" index.
 #
 # Usage:
 #    docmap --src-root PATH [--include-private] [--include-tests] [--out FILE] [--force]
@@ -26,8 +23,12 @@
 #    --out FILE         write YAML to FILE instead of stdout
 #    --force            walk a root that failed the system-root safety check
 #
-# Exit codes: 0 success; 1 any docmap-raised error (usage, bad root,
-# guardrail refusals); 2 argparse's own errors.
+# Exit codes:
+#
+#    0:     success, and documentation
+#    1:     docmap's own error, a usage slip, a root that failed the safety
+#           check, or either guardrail refusing the walk
+#    2:     an unknown flag, or a bad value
 #
 # License: MIT
 # ==============================================
@@ -39,14 +40,14 @@ import re
 import sys
 from pathlib import Path
 
-# Directories we never want to walk into.
+# Directories we never want to walk into. Only names that cannot plausibly
+# hold hand-written source belong here; see DESIGN.md.
 SKIP_DIRS = {
     ".git",
     "__pycache__",
     ".venv",
     "venv",
     "env",
-    "data",
     "node_modules",
     ".pytest_cache",
     ".mypy_cache",
