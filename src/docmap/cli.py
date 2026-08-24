@@ -5,7 +5,7 @@
 # contact: east-van-ai@proton.me
 # ==============================================
 #
-# ~~~ ~~~ ~~~ ~~~ docmap ~~~ ~~~ ~~~ ~~~
+# ~~~ ~~~ ~~~ ~~~ ~~~ docmap ~~~ ~~~ ~~~ ~~~ ~~~
 #
 # Walk a project directory, find Python files, and emit a YAML manifest of
 # every function and class definition along with the first sentence of its
@@ -14,6 +14,7 @@
 # Usage:
 #
 #    docmap print PATH [--include-private] [--include-tests] [--force]
+#    docmap --version
 #
 # Commands:
 #
@@ -29,10 +30,12 @@
 #                       underscore (dunders are always skipped)
 #    --include-tests    include files under test directories / test_*.py
 #    --force            walk a root that failed the system-root safety check
+#    --version          print the installed version and exit
 #
 # PATH comes before the flags, whose order among themselves is free. Bare
 # `docmap` prints this text, and so does `docmap print` with nothing after
-# it. Asking is not a usage error.
+# it. Asking is not a usage error. `--version` belongs to `docmap` itself
+# rather than to `print`, and it answers with no command word.
 #
 # docmap reads no piped input.
 #
@@ -51,6 +54,7 @@ import argparse
 import ast
 import re
 import sys
+from importlib import metadata
 from pathlib import Path
 
 # Argparse hardcodes 2 in `ArgumentParser.error()`, which calls `sys.exit`
@@ -308,19 +312,13 @@ def walk_project(root: Path, include_private: bool, include_tests: bool):
     return file_entries
 
 
-USAGE = "Usage: docmap print PATH [--include-private] [--include-tests] [--force]"
+USAGE = "docmap print PATH [--include-private] [--include-tests] [--force]"
 
 PRINT_HELP = "Walk PATH and print the map to stdout"
 
 
 def leading_paths(tokens):
-    """Return the tokens ahead of the first flag.
-
-    The documented grammar puts PATH before every flag, so the slot is read
-    off the front of the command line. What argparse resolved from anywhere
-    else is discarded, since how much it tolerates depends on the
-    interpreter. See DESIGN.md, "Positions are decided, not inferred".
-    """
+    """Return the tokens ahead of the first flag."""
     paths = []
     for token in tokens:
         if token.startswith("-"):
@@ -332,8 +330,16 @@ def leading_paths(tokens):
 def usage_error(message):
     """Report a command line docmap could not read, with the usage line."""
     print(f"docmap: {message}", file=sys.stderr)
-    print(USAGE, file=sys.stderr)
+    print(f"Usage: {USAGE}", file=sys.stderr)
     return EXIT_ERROR
+
+
+def installed_version():
+    """Return the version of the installed <tool> distribution."""
+    try:
+        return metadata.version("docmap")
+    except metadata.PackageNotFoundError:
+        return "unknown (not installed)"
 
 
 def build_parser():
@@ -346,6 +352,13 @@ def build_parser():
     parser = argparse.ArgumentParser(
         prog="docmap",
         description="Print a YAML docstring manifest for a project.",
+    )
+    # Top-level only, so `docmap print --version` stays an unknown flag.
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {installed_version()}",
+        help="print the installed version and exit",
     )
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 

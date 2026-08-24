@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-24
+
+### Added
+
+- `docmap --version` prints the program name and the installed
+  version, then exits 0. It sits on `docmap` itself, not on `print`
+
 ## [0.3.0] - 2026-08-19
 
 ### Changed

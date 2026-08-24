@@ -7,6 +7,10 @@ grammar, guardrail refusals, and exit codes end to end.
 The `run_cli` and `sample_project` fixtures live in conftest.py.
 """
 
+from importlib import metadata
+
+from docmap.cli import installed_version
+
 # ---------- documentation ----------
 
 
@@ -28,6 +32,13 @@ def test_cli_bare_with_piped_stdin_still_prints_banner(run_cli):
     result = run_cli([], input_text="")
     assert result.returncode == 0
     assert "docmap print PATH" in result.stdout
+
+
+def test_cli_version_prints_name_and_number(run_cli):
+    result = run_cli(["--version"])
+    assert result.returncode == 0
+    assert result.stdout.strip() == f"docmap {installed_version()}"
+    assert result.stderr == ""
 
 
 # ---------- grammar ----------
@@ -71,6 +82,13 @@ def test_cli_unknown_flag_is_argparse_error(run_cli, sample_project):
     assert result.returncode == 2
 
 
+def test_cli_version_on_the_command_is_argparse_error(run_cli, sample_project):
+    result = run_cli(["print", str(sample_project), "--version"])
+    assert result.returncode == 2
+    assert "--version" in result.stderr
+    assert result.stdout == ""
+
+
 def test_cli_old_src_root_grammar_is_argparse_error(run_cli, sample_project):
     result = run_cli(["--src-root", str(sample_project)])
     assert result.returncode == 2
@@ -110,3 +128,25 @@ def test_cli_prints_map_to_stdout(run_cli, sample_project):
     assert result.returncode == 0
     assert "mod.py:" in result.stdout
     assert "Say hello." in result.stdout
+
+
+# ---------- version ----------
+
+
+def test_installed_version_reads_the_distribution_metadata():
+    # Not pinned to pyproject's number: an editable install records the
+    # version once, so a developer's tree lags behind an edit. A tree that
+    # was never installed has no metadata at all.
+    try:
+        expected = metadata.version("docmap")
+    except metadata.PackageNotFoundError:
+        expected = "unknown (not installed)"
+    assert installed_version() == expected
+
+
+def test_installed_version_survives_a_missing_distribution(monkeypatch):
+    def raise_not_found(name):
+        raise metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(metadata, "version", raise_not_found)
+    assert installed_version() == "unknown (not installed)"

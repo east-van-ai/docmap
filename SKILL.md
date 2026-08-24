@@ -34,12 +34,15 @@ right consistently.
 
 ```bash
 docmap print PATH [--include-private] [--include-tests] [--force]
+docmap --version
 ```
 
 - PATH comes before the flags. `docmap print . --force` is right;
   `docmap print --force .` is a usage error.
 - Bare `docmap` is not an error. It prints the usage banner and exits 0, and
   so does `docmap print` on its own.
+- `--version` prints the installed version and exits 0. It belongs to `docmap`
+  itself, so `docmap print --version` is an unknown flag, exit 2.
 - `docmap` does not read piped input; its unit of work is a directory, not a
   stream.
 - Output goes to stdout. A shell redirect writes it to a file:
@@ -90,7 +93,7 @@ These are intentional. Do not fight them.
 ## Exit codes
 
 - `0`: success, and documentation. A bare word is a question, so it prints
-    its usage banner and exits 0
+    its usage banner and exits 0, and `--version` answers the same way
 - `1`: any error `docmap` raises itself (a usage slip, a root that failed the
     system-root sniff, or either guardrail refusing the walk)
 - `2`: argparse's own errors (an unknown command, an unknown flag, or a bad
@@ -98,8 +101,9 @@ These are intentional. Do not fight them.
 
 ## If docmap is not installed
 
-Check with `command -v docmap`. If it is missing, install it. Python 3.9 or
-newer, no runtime dependencies:
+Check with `docmap --version`, which names the version on PATH rather than
+only its presence. If it is missing, install it. Python 3.9 or newer, no
+runtime dependencies:
 
 ```bash
 pipx install "git+https://github.com/east-van-ai/docmap.git"

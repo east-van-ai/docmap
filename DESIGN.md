@@ -3,15 +3,29 @@
 ## Architecture
 
 `docmap` requires Python 3.9 or newer and uses the standard library
-only, with no runtime dependencies (`ast`, `argparse`, `pathlib`,
-`re`, `sys`). The hand-rolled YAML writer exists precisely to keep it
-that way; do not add runtime dependencies. The GitHub CI matrix tests
-Python 3.9 through 3.14.
+only, with no runtime dependencies (`ast`, `argparse`,
+`importlib.metadata`, `pathlib`, `re`, `sys`). The hand-rolled YAML
+writer exists precisely to keep it that way; do not add runtime
+dependencies. The GitHub CI matrix tests Python 3.9 through 3.14.
 
 The whole implementation is one module, `src/docmap/cli.py`: pure
 functions with one job each, plus a `main()` that wires them into a
 pipeline. Data is plain dicts and strings; the only state is the
 filesystem being read.
+
+One module is a decision, not a leftover. The usual split gives a CLI
+a file for the parser, a file per command, and a short entry point,
+which is what keeps a many-command tool readable. docmap has one
+command and one pipeline, and cutting that pipeline across three files
+would cost imports and indirection to buy back nothing. The file stays
+whole past the point where a line budget would call for the split.
+
+The walk pays the visible price. `walk_project` exits on the file
+ceiling rather than returning a code up to `main`, because the count
+crosses deep inside the rglob loop and threading a result back out
+would put a return path through every caller for one refusal. The
+exit code is 1 either way and the message still reads `docmap: ...`
+on stderr, so nothing about the contract changes.
 
 docmap writes nothing. It reads, parses, and prints; the map arrives
 on stdout, and a shell redirect takes it from there. The guardrails
@@ -97,7 +111,7 @@ One mapping per file (path relative to the root), each holding a list
 of entries:
 
 ```yaml
-src/docmap/cli.py:
+src/example/cli.py:
   - def: collect_defs(tree, include_private)
     doc: Collect top-level and class-level function/class defs with their docstrings.
     line: 195
@@ -123,12 +137,14 @@ Flags follow PATH, and their order among themselves is free.
 | --- | --- | --- |
 | `docmap` | banner | 0 |
 | `docmap print` | banner | 0 |
+| `docmap --version` | name and installed version | 0 |
 | `docmap print PATH` | map on stdout | 0 |
 | `docmap print` and flags, no PATH | usage error | 1 |
 | `docmap print --force PATH` | usage error, PATH comes first | 1 |
 | `docmap print A B` | usage error, nothing after PATH | 1 |
 | `docmap print PATH`, PATH not a directory | error | 1 |
 | `docmap print PATH --nope` | argparse rejects the flag | 2 |
+| `docmap print --version` | argparse rejects the flag | 2 |
 | `docmap --src-root .` | argparse rejects the command | 2 |
 
 Positions are decided, not inferred. Argparse from Python 3.12 on
@@ -150,6 +166,22 @@ would drift. A second command is what would split them. The test is
 present the user asked for something specific, and answering with help
 would hide the mistake.
 
+`docmap --version` prints the program name and the installed version
+on one line, then exits 0. It is documentation, so it shares its exit
+code with the banner. The number stays a literal in `pyproject.toml`
+and reaches the CLI through the installed metadata, never as a second
+copy in the source. An editable install records it once, so a
+developer's tree can lag behind an edit; an end user's cannot. The
+lookup is guarded, because the parser is built on every invocation
+past a bare word. An unguarded `PackageNotFoundError` would take down
+`print` too, not just this flag. Only a tree that has never been built
+reaches that branch, and it answers `unknown (not installed)`.
+
+The flag sits on the top-level parser alone, so `docmap print
+--version` is an unknown flag and exits 2. A version is a fact about
+the tool, not an option of a command, and keeping it off the
+subparser is what says so.
+
 `docmap` takes no piped input: its unit of work is a directory, not a
 stream. That is documented, not enforced. `isatty()` answers "is a
 human here", which is right for choosing how to present an answer and
@@ -161,12 +193,12 @@ stdin is.
 
 Exit codes:
 
-- `0`: success, and documentation. A map was emitted, or a bare word
-    printed the banner
+- `0`: success, and documentation. A map was emitted, a bare word
+  printed the banner, or `--version` printed the number
 - `1`: any error `docmap` raises itself (a usage slip, a root that is
-    not a directory, or either guardrail refusing the walk)
+  not a directory, or either guardrail refusing the walk)
 - `2`: argparse's own errors (an unknown command, an unknown flag, or
-    a bad value), left to argparse's convention
+  a bad value), left to argparse's convention
 
 All self-raised errors go to stderr as `docmap: <message>`. Usage
 errors additionally print the usage line; the sniff refusal prints the
@@ -189,7 +221,7 @@ None currently open.
 
 Both the use of AI and its disclosure are deliberate. Code and
 documentation in this project are written in collaboration with
-Artificial Intelligence (AI). The division of labor: the AI explores,
+Artificial Intelligence (AI). The division of labour: the AI explores,
 challenges assumptions and edge cases, and drafts; the human
 initiates, drafts the designs, explores alongside the AI, reviews
 every change, and decides what gets committed.
