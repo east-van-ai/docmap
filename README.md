@@ -57,7 +57,6 @@ No dependencies to worry about, this is a small, self-contained tool.
 
 ```bash
 docmap print PATH [--include-private] [--include-tests] [--force]
-docmap --version
 ```
 
 - `PATH` is the directory to walk. It comes before the flags, whose
@@ -71,8 +70,6 @@ docmap --version
 - `--include-tests` includes files under test directories and
   `test_*.py`
 - `--force` walks a root that failed the safety sniff (see below)
-- `--version` prints the installed version. It belongs to `docmap`
-  itself, not to `print`
 
 The map goes to stdout, so a shell redirect writes it to a file:
 
@@ -82,17 +79,6 @@ docmap print . > map.yaml
 
 `docmap` does not read piped input: its unit of work is a directory,
 not a stream.
-
-### Exit codes
-
-- `0`: success, and documentation. A bare word is a question, so it
-    prints its usage banner and exits 0, and `--version` answers the
-    same way
-- `1`: any error `docmap` raises itself (a usage slip, a root that
-    failed the system-root sniff, or either guardrail refusing the
-    walk)
-- `2`: argparse's own errors (an unknown command, an unknown flag, or
-    a bad value)
 
 ### What it filters out by default
 

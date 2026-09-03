@@ -14,7 +14,6 @@
 # Usage:
 #
 #    docmap print PATH [--include-private] [--include-tests] [--force]
-#    docmap --version
 #
 # Commands:
 #
@@ -30,12 +29,10 @@
 #                       underscore (dunders are always skipped)
 #    --include-tests    include files under test directories / test_*.py
 #    --force            walk a root that failed the system-root safety check
-#    --version          print the installed version and exit
 #
 # PATH comes before the flags, whose order among themselves is free. Bare
 # `docmap` prints this text, and so does `docmap print` with nothing after
-# it. Asking is not a usage error. `--version` belongs to `docmap` itself
-# rather than to `print`, and it answers with no command word.
+# it. Asking is not a usage error.
 #
 # docmap reads no piped input.
 #
@@ -56,6 +53,8 @@ import re
 import sys
 from importlib import metadata
 from pathlib import Path
+
+PROG = "docmap"
 
 # Argparse hardcodes 2 in `ArgumentParser.error()`, which calls `sys.exit`
 # itself, so EXIT_ARGPARSE is never returned, only asserted against. See
@@ -335,11 +334,20 @@ def usage_error(message):
 
 
 def installed_version():
-    """Return the version of the installed <tool> distribution."""
+    """Return the version of the installed docmap distribution."""
     try:
         return metadata.version("docmap")
     except metadata.PackageNotFoundError:
         return "unknown (not installed)"
+
+
+def version_line():
+    """Return the program name and the installed version on one line.
+
+    Both spellings call this, so `docmap version` and `docmap --version`
+    cannot drift apart.
+    """
+    return f"{PROG} {installed_version()}"
 
 
 def build_parser():
@@ -350,14 +358,14 @@ def build_parser():
     unused: `main` reads the slot itself.
     """
     parser = argparse.ArgumentParser(
-        prog="docmap",
+        prog=PROG,
         description="Print a YAML docstring manifest for a project.",
     )
     # Top-level only, so `docmap print --version` stays an unknown flag.
     parser.add_argument(
         "--version",
         action="version",
-        version=f"%(prog)s {installed_version()}",
+        version=version_line(),
         help="print the installed version and exit",
     )
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
@@ -375,6 +383,10 @@ def build_parser():
     printer.add_argument(
         "--force", action="store_true", help="skip the system-root safety check"
     )
+
+    # No arguments and no flags of its own, so a stray word after it is
+    # docmap's usage error rather than argparse's.
+    subparsers.add_parser("version", help="print the installed version and exit")
     return parser
 
 
@@ -399,6 +411,15 @@ def main():
 
     if any(extra.startswith("-") for extra in extras):
         parser.parse_args(tokens)  # argparse names the flag better, exit 2
+
+    # `version` takes no argument, so nothing about it is incomplete: it
+    # answers with the number rather than with the banner.
+    if args.command == "version":
+        strays = leading_paths(tokens[1:])
+        if strays:
+            return usage_error(f"version takes no arguments: {strays[0]!r}")
+        print(version_line())
+        return EXIT_OK
 
     # Not args.path: what argparse resolves from a token after a flag varies
     # by interpreter, and the grammar should not.

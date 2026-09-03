@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-09-03
+
+### Added
+
+- `docmap version` prints the program name and the installed version,
+  then exits 0. A stray word after it is a usage error, exit 1
+
+### Changed
+
+- Neither version spelling is advertised. Both are gone from the usage
+  banner, from `README.md`, and from `DESIGN.md`'s grammar table.
+  DESIGN's prose names `version` once, where accuracy demands it
+
 ## [0.3.1] - 2026-08-24
 
 ### Added
@@ -89,8 +102,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Packaged for `pipx install`
 - Nested classes have dotted qualnames (e.g. Foo.Inner.baz)
 - `DESIGN.md` (architecture, CLI grammar, guardrail rationale) and
-  `RELEASING.md` (stable-branch release model, folding in the former
-  `PACKAGING.md`)
+  `RELEASING.md` (stable-branch release model)
 
 ### Changed
 
@@ -111,8 +123,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - README restructured (Why / Example output /
   Install / Usage / Notes / Use of AI); install now points at the
   `stable` branch
-
-### Removed
-
-- `PACKAGING.md` (content lives in `RELEASING.md` now)
-- `requirements-pinned.txt`

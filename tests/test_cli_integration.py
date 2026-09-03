@@ -34,11 +34,32 @@ def test_cli_bare_with_piped_stdin_still_prints_banner(run_cli):
     assert "docmap print PATH" in result.stdout
 
 
+def test_cli_banner_advertises_neither_version_spelling(run_cli):
+    result = run_cli([])
+    assert "--version" not in result.stdout
+    assert "docmap version" not in result.stdout
+
+
 def test_cli_version_prints_name_and_number(run_cli):
     result = run_cli(["--version"])
     assert result.returncode == 0
     assert result.stdout.strip() == f"docmap {installed_version()}"
     assert result.stderr == ""
+
+
+def test_cli_version_command_prints_name_and_number(run_cli):
+    result = run_cli(["version"])
+    assert result.returncode == 0
+    assert result.stdout.strip() == f"docmap {installed_version()}"
+    assert result.stderr == ""
+
+
+def test_cli_both_version_spellings_print_the_same_line(run_cli):
+    # The two tests above would both pass with two copies of the line.
+    # This is the one that fails if they drift.
+    word = run_cli(["version"])
+    flag = run_cli(["--version"])
+    assert word.stdout == flag.stdout
 
 
 # ---------- grammar ----------
@@ -86,6 +107,21 @@ def test_cli_version_on_the_command_is_argparse_error(run_cli, sample_project):
     result = run_cli(["print", str(sample_project), "--version"])
     assert result.returncode == 2
     assert "--version" in result.stderr
+    assert result.stdout == ""
+
+
+def test_cli_version_with_a_stray_word_is_usage_error(run_cli):
+    result = run_cli(["version", "extra"])
+    assert result.returncode == 1
+    assert "version takes no arguments" in result.stderr
+    assert "'extra'" in result.stderr
+    assert "Usage: docmap print PATH" in result.stderr
+    assert result.stdout == ""
+
+
+def test_cli_version_with_a_stray_flag_is_argparse_error(run_cli):
+    result = run_cli(["version", "--nope"])
+    assert result.returncode == 2
     assert result.stdout == ""
 
 

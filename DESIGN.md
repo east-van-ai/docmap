@@ -137,14 +137,12 @@ Flags follow PATH, and their order among themselves is free.
 | --- | --- | --- |
 | `docmap` | banner | 0 |
 | `docmap print` | banner | 0 |
-| `docmap --version` | name and installed version | 0 |
 | `docmap print PATH` | map on stdout | 0 |
 | `docmap print` and flags, no PATH | usage error | 1 |
 | `docmap print --force PATH` | usage error, PATH comes first | 1 |
 | `docmap print A B` | usage error, nothing after PATH | 1 |
 | `docmap print PATH`, PATH not a directory | error | 1 |
 | `docmap print PATH --nope` | argparse rejects the flag | 2 |
-| `docmap print --version` | argparse rejects the flag | 2 |
 | `docmap --src-root .` | argparse rejects the command | 2 |
 
 Positions are decided, not inferred. Argparse from Python 3.12 on
@@ -161,26 +159,16 @@ A bare word is a question and gets documentation. One command in one
 file means one document, so bare `docmap` and bare `docmap print` both
 print the module docstring, which is the usage banner. It already names
 the command, the argument, and every flag, and a second copy beside it
-would drift. A second command is what would split them. The test is
-`len(sys.argv) == 2`, never "PATH is missing": once any other token is
-present the user asked for something specific, and answering with help
-would hide the mistake.
+would drift.
 
-`docmap --version` prints the program name and the installed version
-on one line, then exits 0. It is documentation, so it shares its exit
-code with the banner. The number stays a literal in `pyproject.toml`
-and reaches the CLI through the installed metadata, never as a second
-copy in the source. An editable install records it once, so a
-developer's tree can lag behind an edit; an end user's cannot. The
-lookup is guarded, because the parser is built on every invocation
-past a bare word. An unguarded `PackageNotFoundError` would take down
-`print` too, not just this flag. Only a tree that has never been built
-reaches that branch, and it answers `unknown (not installed)`.
+The test is the token itself, `docmap` alone or `print` alone, never
+"PATH is missing". Once any other token is present the user asked for
+something specific, and answering with help would hide the mistake.
 
-The flag sits on the top-level parser alone, so `docmap print
---version` is an unknown flag and exits 2. A version is a fact about
-the tool, not an option of a command, and keeping it off the
-subparser is what says so.
+`version` is the case that shows why the test is written that way. It is
+two tokens, the same shape as bare `print`, but it takes no argument.
+Nothing about it is incomplete, so it answers with the version line
+rather than the banner. A count of tokens could not tell the two apart.
 
 `docmap` takes no piped input: its unit of work is a directory, not a
 stream. That is documented, not enforced. `isatty()` answers "is a
@@ -193,8 +181,8 @@ stdin is.
 
 Exit codes:
 
-- `0`: success, and documentation. A map was emitted, a bare word
-  printed the banner, or `--version` printed the number
+- `0`: success, and documentation. A map was emitted, or a bare word
+  printed the banner
 - `1`: any error `docmap` raises itself (a usage slip, a root that is
   not a directory, or either guardrail refusing the walk)
 - `2`: argparse's own errors (an unknown command, an unknown flag, or
@@ -204,18 +192,6 @@ All self-raised errors go to stderr as `docmap: <message>`. Usage
 errors additionally print the usage line; the sniff refusal prints the
 exact `--force` re-run hint instead, since the fix there is a flag,
 not a different grammar.
-
-## Open Questions
-
-- Module-level constants and assignments are not captured; undecided
-  whether they belong on the map. Nothing forces the issue yet.
-
-## Known Bugs
-
-Confirmed defects, recorded here until fixed. This file is the bug
-tracker, since a solo project doesn't need GitHub Issues.
-
-None currently open.
 
 ## Use of AI
 
