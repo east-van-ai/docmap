@@ -125,6 +125,13 @@ def test_collect_defs_does_not_descend_into_function_bodies():
     assert {e["name"] for e in entries} == {"outer"}
 
 
+def test_collect_defs_skips_dunder_class_even_with_private():
+    src = "class __Weird__:\n    pass\n"
+    tree = ast.parse(src)
+    entries = collect_defs(tree, include_private=True)
+    assert entries == []
+
+
 # ---------- dump_yaml ----------
 
 

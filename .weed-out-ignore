@@ -4,11 +4,12 @@
 .github/**/*.yaml
 .gitignore
 .weed-out-ignore
+docs/CLI.md
+docs/DESIGN.md
+docs/SKILL.md
 src/**/*.py
 tests/*.py
 CHANGELOG.md
-DESIGN.md
 LICENSE
 pyproject.toml
 README.md
-SKILL.md

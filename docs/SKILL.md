@@ -91,8 +91,8 @@ These are intentional. Do not fight them.
 
 - `0`: success, and documentation. A bare word is a question, so it prints
     its usage banner and exits 0
-- `1`: any error `docmap` raises itself (a usage slip, a root that failed the
-    system-root sniff, or either guardrail refusing the walk)
+- `1`: any error `docmap` raises itself (a usage slip, a root that is not
+    a directory, or either guardrail refusing the walk)
 - `2`: argparse's own errors (an unknown command, an unknown flag, or a bad
     value)
 

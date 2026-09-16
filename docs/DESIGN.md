@@ -68,8 +68,8 @@ to make the wrong invocation loud and cheap instead of slow and silent.
    output.
 
 3. **Default filters.** VCS/cache/build/venv directories, hidden
-   files and directories, and test files are skipped by default (see
-   README for the list). This is a guardrail in the small: the map is
+   files and directories, and test files are skipped by default (`SKIP_DIRS`
+   and `is_test_file` hold the lists). This is a guardrail in the small: the map is
    meant to show a project's own public-ish surface, and every
    filtered entry is noise that would drown it.
 
@@ -127,23 +127,11 @@ strings. `yaml_escape` quotes only when it must (YAML-significant
 characters or surrounding whitespace), so the common case stays clean
 to read. Files with no surviving entries are omitted entirely.
 
-## CLI Grammar
+## The Command Line
 
-`docmap print PATH [--include-private] [--include-tests] [--force]`.
-The command word sits at `argv[1]` and the walk target at `argv[2]`.
-Flags follow PATH, and their order among themselves is free.
-
-| Command line | Result | Exit |
-| --- | --- | --- |
-| `docmap` | banner | 0 |
-| `docmap print` | banner | 0 |
-| `docmap print PATH` | map on stdout | 0 |
-| `docmap print` and flags, no PATH | usage error | 1 |
-| `docmap print --force PATH` | usage error, PATH comes first | 1 |
-| `docmap print A B` | usage error, nothing after PATH | 1 |
-| `docmap print PATH`, PATH not a directory | error | 1 |
-| `docmap print PATH --nope` | argparse rejects the flag | 2 |
-| `docmap --src-root .` | argparse rejects the command | 2 |
+`docs/CLI.md` states the surface: the grammar, the accepted command
+lines, the flags, and the exit codes. This section holds the decisions
+under it.
 
 Positions are decided, not inferred. Argparse from Python 3.12 on
 back-fills a trailing optional positional from a token after any
@@ -170,28 +158,17 @@ two tokens, the same shape as bare `print`, but it takes no argument.
 Nothing about it is incomplete, so it answers with the version line
 rather than the banner. A count of tokens could not tell the two apart.
 
-`docmap` takes no piped input: its unit of work is a directory, not a
-stream. That is documented, not enforced. `isatty()` answers "is a
-human here", which is right for choosing how to present an answer and
-wrong for deciding what the answer is. `/dev/null` arrives from cron,
-from a subprocess, and from a test runner, and reads as a pipe under
-that test, so one command line would print help from a shell and fail
-under nohup. Bare `docmap` prints the banner and exits 0, whatever
+No piped input is a documented rule, not an enforced one. `isatty()` answers
+"is a human here", which is right for choosing how to present an answer
+and wrong for deciding what the answer is. `/dev/null` arrives from
+cron, from a subprocess, and from a test runner, and reads as a pipe
+under that test, so one command line would print help from a shell and
+fail under nohup. Bare `docmap` prints the banner and exits 0, whatever
 stdin is.
 
-Exit codes:
-
-- `0`: success, and documentation. A map was emitted, or a bare word
-  printed the banner
-- `1`: any error `docmap` raises itself (a usage slip, a root that is
-  not a directory, or either guardrail refusing the walk)
-- `2`: argparse's own errors (an unknown command, an unknown flag, or
-  a bad value), left to argparse's convention
-
-All self-raised errors go to stderr as `docmap: <message>`. Usage
-errors additionally print the usage line; the sniff refusal prints the
-exact `--force` re-run hint instead, since the fix there is a flag,
-not a different grammar.
+A guardrail refusal prints the exact `--force` re-run hint where a
+usage error would print the usage line. The fix there is a flag, not a
+different grammar.
 
 ## Use of AI
 

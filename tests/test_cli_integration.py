@@ -89,6 +89,7 @@ def test_cli_second_positional_is_usage_error(run_cli, sample_project):
     result = run_cli(["print", str(sample_project), "extra"])
     assert result.returncode == 1
     assert "nothing after PATH" in result.stderr
+    assert "Usage: docmap print PATH" in result.stderr
 
 
 def test_cli_nonexistent_path_is_error(run_cli, tmp_path):
@@ -115,7 +116,8 @@ def test_cli_version_with_a_stray_word_is_usage_error(run_cli):
     assert result.returncode == 1
     assert "version takes no arguments" in result.stderr
     assert "'extra'" in result.stderr
-    assert "Usage: docmap print PATH" in result.stderr
+    assert "Usage: docmap version" in result.stderr
+    assert "docmap print" not in result.stderr
     assert result.stdout == ""
 
 

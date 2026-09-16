@@ -1,11 +1,11 @@
 """
 # ==============================================
 # East Van AI -- AI for the rest of us!
-# https://github.com/east-van-ai
+# https://github.com/east-van-ai/docmap
 # contact: east-van-ai@proton.me
 # ==============================================
 #
-# ~~~ ~~~ ~~~ ~~~ ~~~ docmap ~~~ ~~~ ~~~ ~~~ ~~~
+# ~~~ ~~~ ~~~ ~~~ ~~~ ~~~ ~~~ ~~~ docmap ~~~ ~~~ ~~~ ~~~ ~~~ ~~~ ~~~ ~~~
 #
 # Walk a project directory, find Python files, and emit a YAML manifest of
 # every function and class definition along with the first sentence of its
@@ -57,14 +57,13 @@ from pathlib import Path
 PROG = "docmap"
 
 # Argparse hardcodes 2 in `ArgumentParser.error()`, which calls `sys.exit`
-# itself, so EXIT_ARGPARSE is never returned, only asserted against. See
-# DESIGN.md, "CLI Grammar", for what the three cover.
+# itself, so EXIT_ARGPARSE is never returned, only asserted against.
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_ARGPARSE = 2
 
 # Directories we never want to walk into. Only names that cannot plausibly
-# hold hand-written source belong here; see DESIGN.md.
+# hold hand-written source belong here.
 SKIP_DIRS = {
     ".git",
     "__pycache__",
@@ -181,6 +180,7 @@ def first_doc_sentence(node) -> str:
 
 
 def format_args(args: ast.arguments) -> str:
+    """Render a def's parameter names as a comma-separated signature string."""
     parts = []
     for a in args.posonlyargs:
         parts.append(a.arg)
@@ -201,35 +201,27 @@ def collect_defs(tree: ast.Module, include_private: bool):
 
     def visit(node, prefix=""):
         for child in ast.iter_child_nodes(node):
-            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                name = child.name
-                if name.startswith("__") and name.endswith("__"):
-                    continue
-                if name.startswith("_") and not include_private:
-                    continue
-                qualname = f"{prefix}{name}"
-                entries.append(
-                    {
-                        "name": qualname,
-                        "args": format_args(child.args),
-                        "doc": first_doc_sentence(child),
-                        "line": child.lineno,
-                    }
-                )
-            elif isinstance(child, ast.ClassDef):
-                name = child.name
-                if name.startswith("_") and not include_private:
-                    continue
-                qualname = f"{prefix}{name}"
-                entries.append(
-                    {
-                        "name": qualname,
-                        "args": "",
-                        "doc": first_doc_sentence(child),
-                        "line": child.lineno,
-                        "is_class": True,
-                    }
-                )
+            is_class = isinstance(child, ast.ClassDef)
+            if not is_class and not isinstance(
+                child, (ast.FunctionDef, ast.AsyncFunctionDef)
+            ):
+                continue
+            name = child.name
+            if name.startswith("__") and name.endswith("__"):
+                continue
+            if name.startswith("_") and not include_private:
+                continue
+            qualname = f"{prefix}{name}"
+            entry = {
+                "name": qualname,
+                "args": "" if is_class else format_args(child.args),
+                "doc": first_doc_sentence(child),
+                "line": child.lineno,
+            }
+            if is_class:
+                entry["is_class"] = True
+            entries.append(entry)
+            if is_class:
                 visit(child, prefix=f"{qualname}.")
             # Don't descend into function bodies for nested defs by default;
             # keeps the map flat and focused on the public-ish surface.
@@ -311,7 +303,8 @@ def walk_project(root: Path, include_private: bool, include_tests: bool):
     return file_entries
 
 
-USAGE = "docmap print PATH [--include-private] [--include-tests] [--force]"
+PRINT_USAGE = "docmap print PATH [--include-private] [--include-tests] [--force]"
+VERSION_USAGE = "docmap version"
 
 PRINT_HELP = "Walk PATH and print the map to stdout"
 
@@ -326,10 +319,10 @@ def leading_paths(tokens):
     return paths
 
 
-def usage_error(message):
-    """Report a command line docmap could not read, with the usage line."""
+def usage_error(usage, message):
+    """Report a command line docmap could not read, with the matching usage."""
     print(f"docmap: {message}", file=sys.stderr)
-    print(f"Usage: {USAGE}", file=sys.stderr)
+    print(f"Usage: {usage}", file=sys.stderr)
     return EXIT_ERROR
 
 
@@ -417,7 +410,9 @@ def main():
     if args.command == "version":
         strays = leading_paths(tokens[1:])
         if strays:
-            return usage_error(f"version takes no arguments: {strays[0]!r}")
+            return usage_error(
+                VERSION_USAGE, f"version takes no arguments: {strays[0]!r}"
+            )
         print(version_line())
         return EXIT_OK
 
@@ -425,9 +420,9 @@ def main():
     # by interpreter, and the grammar should not.
     paths = leading_paths(tokens[1:])
     if not paths:
-        return usage_error("print needs PATH")
+        return usage_error(PRINT_USAGE, "print needs PATH")
     if len(paths) > 1:
-        return usage_error(f"print takes nothing after PATH: {paths[1]!r}")
+        return usage_error(PRINT_USAGE, f"print takes nothing after PATH: {paths[1]!r}")
 
     root = Path(paths[0]).resolve()
     if not root.is_dir():

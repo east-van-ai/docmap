@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-09-16
+
+### Changed
+
+- `DESIGN.md` and `SKILL.md` moved into `docs/`
+- The command surface has its own document, `docs/CLI.md`: the grammar,
+  the accepted command lines, the flags, and the exit codes
+
+### Fixed
+
+- A stray word after `docmap version` prints the `version` usage line, not
+  the `print` grammar
+
 ## [0.3.2] - 2026-09-03
 
 ### Added

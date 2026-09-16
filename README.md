@@ -51,8 +51,6 @@ through 3.14.
 pipx install "git+https://github.com/east-van-ai/docmap.git"
 ```
 
-No dependencies to worry about, this is a small, self-contained tool.
-
 ## Usage
 
 ```bash
@@ -60,8 +58,7 @@ docmap print PATH [--include-private] [--include-tests] [--force]
 ```
 
 - `PATH` is the directory to walk. It comes before the flags, whose
-  order among themselves is free. (Curious about the grammar? See the
-  "CLI Grammar" section of [DESIGN.md](DESIGN.md).)
+  order among themselves is free.
 - Bare `docmap` prints this usage information, and so does
   `docmap print` on its own. Walking the current directory is an
   explicit `docmap print .`
@@ -99,9 +96,9 @@ you really mean it.
 
 It also caps out at 5000 `.py` files mid-walk and aborts loudly, on
 the assumption that crossing that ceiling means the wrong root got
-passed in, not that you have a 5000-file Python project. The rationale
-for both rails lives in "The Guardrails" section of
-[DESIGN.md](DESIGN.md).
+passed in, not that you have a 5000-file Python project. The ceiling is
+the one thing `--force` will not lift, since vouching for an odd-looking
+root is not vouching for unbounded output.
 
 ## Wire it into your agent
 
@@ -110,7 +107,7 @@ generate. It earns its keep when the assistant fetches one itself, at
 the moment it needs one, and agent harnesses that read a `SKILL.md`
 will do exactly that once you tell them when.
 
-[SKILL.md](SKILL.md) in this repo is that file. Not a specimen
+[docs/SKILL.md](docs/SKILL.md) in this repo is that file. Not a specimen
 written for the README: it is the one in daily use here. Copy it to
 wherever your harness keeps skills, which for Claude Code means
 `~/.claude/skills/docmap/SKILL.md`, and the assistant will start

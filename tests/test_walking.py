@@ -39,7 +39,7 @@ def test_should_skip_dir_known_dirs():
 
 
 def test_should_skip_dir_allows_ordinary_package_names():
-    """`data` is a real package name, not build output. See DESIGN.md."""
+    """`data` is a real package name, not build output."""
     assert not should_skip_dir(Path("data"), include_tests=True)
 
 
